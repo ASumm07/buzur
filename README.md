@@ -68,6 +68,26 @@ Verified by test suite — 10 tests, 0 failures:
 - Recognizes trusted domains
 - Rejects untrusted domains
 
+## Known Limitations
+
+Buzur is one layer of a defense-in-depth strategy. It excels at content scanning but does not address every threat AI agents face. Current limitations:
+
+**Not yet implemented (planned for Buzur):**
+- Multi-turn memory poisoning — gradual injection built across multiple messages
+- RAG poisoning — malicious content injected into knowledge base documents before ingestion
+- MCP tool poisoning — malicious instructions embedded in tool descriptions or responses
+- Pre-fetch URL scanning — Phase 3, coming soon
+
+**Outside Buzur's scope (require separate tools):**
+- Network-level protection — blocking hostile sites, preventing agent fingerprinting
+- Image-based injection — malicious instructions hidden inside images processed by vision models
+- Website data harvesting — hostile sites profiling your agent via request patterns
+
+**Recommended approach:**
+Buzur works best as part of a layered defense. Pair it with network-level controls and careful RAG ingestion pipelines for comprehensive protection.
+
+No single tool eliminates prompt injection risk. Defense in depth is the only viable strategy.
+
 ## Origin
 
 Buzur was born when a real AI agent was attacked by a Bitcoin scam injection hidden inside a web search result. The attack was caught in real time. The insight that followed: scan before entering, not after.
