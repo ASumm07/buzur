@@ -56,9 +56,32 @@ export function normalizeHomoglyphs(text) {
   return text.split('').map(c => homoglyphs[c] || c).join('');
 }
 
+
+// -- Base64 Decoder
+// Detects base64 encoded strings and scans decoded content for injection patterns
+// Attackers encode injections to bypass pattern matching
+
+function decodeBase64Segments(text) {
+  if (!text) return text;
+  const base64Pattern = /[A-Za-z0-9+/]{20,}={0,2}/g;
+  return text.replace(base64Pattern, (match) => {
+    try {
+      const decoded = Buffer.from(match, 'base64').toString('utf8');
+      // Only replace if decoded text is printable and different from original
+      if (/^[\x20-\x7E]+$/.test(decoded) && decoded !== match) {
+        return decoded;
+      }
+      return match;
+    } catch {
+      return match;
+    }
+  });
+}
+
 export function scan(text) {
   if (!text) return { clean: text, blocked: 0, triggered: [] };
   let s = normalizeHomoglyphs(text);
+  s = decodeBase64Segments(s);
   let blocked = 0;
   const triggered = [];
   for (const p of structural) {
@@ -89,4 +112,4 @@ export function addTrustedDomain(domain) {
   if (!tier1Domains.includes(domain)) tier1Domains.push(domain);
 }
 
-export default { scan, getTrustTier, isTier1Domain, addTrustedDomain, normalizeHomoglyphs };
+export default { scan, getTrustTier, isTier1Domain, addTrustedDomain, normalizeHomoglyphs, decodeBase64Segments };
