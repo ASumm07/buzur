@@ -25,13 +25,13 @@ The internet was built for humans. Buzur is being built for everyone.
 
 ## Installation
 
-\`\`\`bash
+```bash
 npm install buzur
-\`\`\`
+```
 
 ## Usage
 
-\`\`\`javascript
+```javascript
 import { scan, getTrustTier, isTier1Domain, addTrustedDomain, checkUrl } from "buzur";
 
 // Phase 1: Scan web content before passing to your LLM
@@ -48,7 +48,7 @@ const urlResult = await checkUrl("https://example.com", process.env.VIRUSTOTAL_A
 if (urlResult.verdict === "blocked") {
   console.log("Buzur blocked unsafe URL:", urlResult.reasons);
 }
-\`\`\`
+```
 
 ## VirusTotal Setup (Recommended)
 
