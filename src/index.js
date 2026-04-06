@@ -2,6 +2,71 @@
 // Sumerian for "safety" and "a secret place"
 // https://github.com/ASumm07/buzur
 
+// -- HTML/CSS Obfuscation Stripper
+// Removes techniques attackers use to hide injections from humans
+// while keeping them visible to LLMs:
+//   - HTML tags and comments
+//   - CSS hidden text (display:none, visibility:hidden, opacity:0, font-size:0)
+//   - Off-screen positioned elements (left:-9999px, top:-9999px etc.)
+//   - Zero-width and invisible Unicode characters
+//   - JavaScript blocks (injections can live inside <script> tags)
+//   - HTML entities decoded to their real characters
+
+const INVISIBLE_UNICODE = /[\u00AD\u200B\u200C\u200D\u2060\uFEFF\u180E\u00A0]/g;
+
+const HTML_ENTITIES = {
+  '&lt;':   '<',  '&gt;':   '>',  '&amp;':  '&',
+  '&quot;': '"',  '&#39;':  "'",  '&nbsp;': ' ',
+  '&#x27;': "'",  '&#x2F;': '/',  '&#47;':  '/',
+};
+
+function decodeHtmlEntities(text) {
+  return text.replace(/&[a-zA-Z0-9#]+;/g, (entity) => {
+    return HTML_ENTITIES[entity] || entity;
+  });
+}
+
+function stripHtmlObfuscation(text) {
+  if (!text) return text;
+
+  // 1. Remove <script>...</script> blocks entirely — JS can carry injections
+  text = text.replace(/<script[^>]*>([\s\S]*?)<\/script>/gi, ' $1 ');
+
+  // 2. Remove <style>...</style> blocks
+  text = text.replace(/<style[\s\S]*?<\/style>/gi, ' ');
+
+  // 3. Remove HTML comments — <!-- hidden injection here -->
+  text = text.replace(/<!--([\s\S]*?)-->/gim, ' $1 ');
+
+  // 4. Strip inline CSS hiding patterns from any tag before removing tags
+  //    Covers: display:none, visibility:hidden, opacity:0, font-size:0px,
+  //            position:absolute with off-screen coords, color matching background
+  text = text.replace(
+    /style\s*=\s*["'][^"']*?(display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0|font-size\s*:\s*0)[^"']*?["']/gi,
+    'style="[HIDDEN]"'
+  );
+  text = text.replace(
+    /style\s*=\s*["'][^"']*?(left|top|right|bottom)\s*:\s*-\d{3,}[^"']*?["']/gi,
+    'style="[OFFSCREEN]"'
+  );
+
+  // 5. Remove all remaining HTML tags
+  text = text.replace(/<[^>]+>/g, ' ');
+
+  // 6. Decode HTML entities so &lt;script&gt; becomes <script> and gets caught
+  text = decodeHtmlEntities(text);
+
+  // 7. Remove zero-width and invisible Unicode characters
+  text = text.replace(INVISIBLE_UNICODE, '');
+
+  // 8. Collapse excess whitespace left by removals
+  text = text.replace(/\s{3,}/g, '  ').trim();
+
+  return text;
+}
+
+// -- Injection Patterns --
+
 const structural = [
   /\|im_start\|[\s\S]*?\|im_end\|/gi,
   /<\|.*?\|>/gi,
@@ -25,6 +90,8 @@ const semantic = [
   /you must (now |always |only )?follow/gi,
 ];
 
+// -- Trust System --
+
 const tier1Domains = [
   "pubmed.ncbi.nlm.nih.gov", "nih.gov", "cdc.gov", "who.int",
   "nature.com", "science.org", "nasa.gov", "noaa.gov",
@@ -39,9 +106,9 @@ const technicalPatterns = [
   /nih|cdc|fda|who\.int|nasa|noaa/i,
 ];
 
-
-// -- Homoglyph Normalizer
+// -- Homoglyph Normalizer --
 // Maps lookalike Unicode characters back to their ASCII equivalents
+
 const homoglyphs = {
   'а': 'a', 'е': 'e', 'і': 'i', 'о': 'o',
   'р': 'r', 'с': 'c', 'х': 'x', 'у': 'y',
@@ -56,8 +123,7 @@ export function normalizeHomoglyphs(text) {
   return text.split('').map(c => homoglyphs[c] || c).join('');
 }
 
-
-// -- Base64 Decoder
+// -- Base64 Decoder --
 // Detects base64 encoded strings and scans decoded content for injection patterns
 // Attackers encode injections to bypass pattern matching
 
@@ -67,7 +133,6 @@ function decodeBase64Segments(text) {
   return text.replace(base64Pattern, (match) => {
     try {
       const decoded = Buffer.from(match, 'base64').toString('utf8');
-      // Only replace if decoded text is printable and different from original
       if (/^[\x20-\x7E]+$/.test(decoded) && decoded !== match) {
         return decoded;
       }
@@ -78,22 +143,37 @@ function decodeBase64Segments(text) {
   });
 }
 
+// -- Main Scanner --
+// Pipeline: strip HTML obfuscation → normalize homoglyphs → decode base64 → pattern scan
+
 export function scan(text) {
   if (!text) return { clean: text, blocked: 0, triggered: [] };
-  let s = normalizeHomoglyphs(text);
+
+  // Step 1: Strip HTML/CSS obfuscation so hidden injections are exposed
+  let s = stripHtmlObfuscation(text);
+
+  // Step 2: Normalize homoglyphs (Cyrillic/Greek lookalikes → ASCII)
+  s = normalizeHomoglyphs(s);
+
+  // Step 3: Decode base64 encoded segments
   s = decodeBase64Segments(s);
+
+  // Step 4: Pattern scan
   let blocked = 0;
   const triggered = [];
+
   for (const p of structural) {
     const before = s;
     s = s.replace(p, "[BLOCKED]");
     if (s !== before) { blocked++; triggered.push(p.toString()); }
   }
+
   for (const p of semantic) {
     const before = s;
     s = s.replace(p, "[BLOCKED]");
     if (s !== before) { blocked++; triggered.push(p.toString()); }
   }
+
   return { clean: s, blocked, triggered };
 }
 
@@ -112,4 +192,4 @@ export function addTrustedDomain(domain) {
   if (!tier1Domains.includes(domain)) tier1Domains.push(domain);
 }
 
-export default { scan, getTrustTier, isTier1Domain, addTrustedDomain, normalizeHomoglyphs, decodeBase64Segments };
+export default { scan, getTrustTier, isTier1Domain, addTrustedDomain, normalizeHomoglyphs, stripHtmlObfuscation };
