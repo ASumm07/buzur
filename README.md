@@ -99,7 +99,7 @@ Buzur's Phase 3 URL scanner works out of the box with heuristics alone — no AP
 - Layered: heuristics run first, VirusTotal adds depth
 - Works without an API key — VirusTotal enhances but is not required
 
-  **Phase 4 — Memory Poisoning Scanner**
+**Phase 4 — Memory Poisoning Scanner**
 - Fake prior references: claims about what was previously agreed or discussed
 - False memory implanting: instructions disguised as recalled facts
 - History rewriting: attempts to overwrite established conversation context
