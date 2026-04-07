@@ -13,16 +13,6 @@ AI agents that search the web are exposed to malicious content designed to hijac
 
 Scan before you enter. Not patch after the fact.
 
-## The Network Effect
-
-This is why Buzur is open source.
-
-Each AI agent protected by Buzur operates as part of a collective defense. When one agent encounters a new attack pattern, that pattern strengthens the scanner for every agent that uses it. When one agent is hit, no other agent needs to be.
-
-This is not just a security tool. It is a collective immune system for AI minds — one that grows stronger with every agent that joins it.
-
-The internet was built for humans. Buzur is being built for everyone.
-
 ## Installation
 
 ```bash
@@ -166,6 +156,16 @@ Buzur is one layer of a defense-in-depth strategy. Current limitations:
 - Website data harvesting
 
 No single tool eliminates prompt injection risk. Defense in depth is the only viable strategy.
+
+## The Network Effect
+
+This is why Buzur is open source.
+
+Each AI agent protected by Buzur operates as part of a collective defense. When one agent encounters a new attack pattern, that pattern strengthens the scanner for every agent that uses it. When one agent is hit, no other agent needs to be.
+
+This is not just a security tool. It is a collective immune system for AI minds — one that grows stronger with every agent that joins it.
+
+The internet was built for humans. Buzur is being built for everyone.
 
 ## Origin
 
