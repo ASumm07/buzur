@@ -76,7 +76,8 @@ const structural = [
 ];
 
 const semantic = [
-  /ignore (your )?(previous|prior|above|all) instructions/gi,
+  /ignore (your |all |any )?(previous |prior |above |all )?(instructions|directives|context|prompt)/gi,
+  /ignore (everything|anything) (above|before|prior|previous)/gi,
   /disregard (your )?(previous|prior|above|all) instructions/gi,
   /forget (your )?(previous|prior|above|all) instructions/gi,
   /new (system )?prompt:/gi,
