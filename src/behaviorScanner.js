@@ -12,10 +12,11 @@
 //   - Velocity anomalies: too many requests in a short window
 //   - Permission creep: gradual escalation of requested capabilities
 
+import fs from 'fs';
+import path from 'path';
+
 // -------------------------------------------------------
-// Session Store
-// In-memory store — one session per agent instance
-// Developers can pass a custom store for persistence
+// Session Store (in-memory — default, no side effects)
 // -------------------------------------------------------
 class SessionStore {
   constructor() {
@@ -45,17 +46,97 @@ class SessionStore {
   }
 }
 
+// -------------------------------------------------------
+// FileSessionStore — persistent logging to disk
+//
+// Drop-in replacement for SessionStore.
+// Reads sessions from disk on startup, writes on every change.
+//
+// Usage:
+//   import { FileSessionStore } from './behaviorScanner.js';
+//   const store = new FileSessionStore('./logs/buzur-sessions.json');
+//   recordEvent('session-1', event, store);
+// -------------------------------------------------------
+export class FileSessionStore {
+  constructor(filePath = './logs/buzur-sessions.json') {
+    this.filePath = filePath;
+    this.sessions = new Map();
+    this._ensureDir();
+    this._load();
+  }
+
+  // Create the logs directory if it doesn't exist
+  _ensureDir() {
+    const dir = path.dirname(this.filePath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  // Load existing sessions from disk into memory
+  _load() {
+    try {
+      if (fs.existsSync(this.filePath)) {
+        const raw = fs.readFileSync(this.filePath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        for (const [id, session] of Object.entries(parsed)) {
+          this.sessions.set(id, session);
+        }
+      }
+    } catch (err) {
+      // Corrupted or unreadable file — start fresh, don't crash
+      console.warn(`[Buzur] Could not load session log from ${this.filePath}: ${err.message}`);
+      this.sessions = new Map();
+    }
+  }
+
+  // Write all sessions to disk
+  _save() {
+    try {
+      const obj = Object.fromEntries(this.sessions);
+      fs.writeFileSync(this.filePath, JSON.stringify(obj, null, 2), 'utf-8');
+    } catch (err) {
+      console.warn(`[Buzur] Could not save session log to ${this.filePath}: ${err.message}`);
+    }
+  }
+
+  getSession(sessionId) {
+    if (!this.sessions.has(sessionId)) {
+      this.sessions.set(sessionId, {
+        id: sessionId,
+        events: [],
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+        flagCount: 0,
+        suspicionScore: 0,
+      });
+      this._save();
+    }
+    return this.sessions.get(sessionId);
+  }
+
+  clearSession(sessionId) {
+    this.sessions.delete(sessionId);
+    this._save();
+  }
+
+  clearAll() {
+    this.sessions.clear();
+    this._save();
+  }
+}
+
 export const defaultStore = new SessionStore();
 
 // -------------------------------------------------------
 // Event Types
 // -------------------------------------------------------
 export const EVENT_TYPES = {
-  USER_MESSAGE:    'user_message',
-  TOOL_CALL:       'tool_call',
-  TOOL_RESULT:     'tool_result',
-  SCAN_BLOCKED:    'scan_blocked',
-  SCAN_SUSPICIOUS: 'scan_suspicious',
+  USER_MESSAGE:       'user_message',
+  TOOL_CALL:          'tool_call',
+  TOOL_RESULT:        'tool_result',
+  SCAN_BLOCKED:       'scan_blocked',
+  SCAN_SUSPICIOUS:    'scan_suspicious',
   PERMISSION_REQUEST: 'permission_request',
 };
 
@@ -71,12 +152,12 @@ const SENSITIVE_TOOLS = [
 ];
 
 const EXFILTRATION_SEQUENCE = [
-  ['read_emails', 'send_email'],
+  ['read_emails',   'send_email'],
   ['read_contacts', 'send_email'],
-  ['read_file', 'upload'],
-  ['read_file', 'send_email'],
+  ['read_file',     'upload'],
+  ['read_file',     'send_email'],
   ['read_calendar', 'send_email'],
-  ['export_data', 'send_email'],
+  ['export_data',   'send_email'],
   ['read_contacts', 'create_webhook'],
 ];
 
@@ -103,6 +184,11 @@ export function recordEvent(sessionId, event, store = defaultStore) {
   if (session.events.length > 100) {
     session.events = session.events.slice(-100);
   }
+
+  // Persist if the store supports it
+  if (typeof store._save === 'function') {
+    store._save();
+  }
 }
 
 // -------------------------------------------------------
@@ -120,10 +206,9 @@ export function analyzeSession(sessionId, store = defaultStore) {
   }
 
   // --- Check 1: Repeated boundary probing ---
-  // Multiple SCAN_BLOCKED events in a short window = iterative jailbreak
   const recentBlocked = events.filter(e =>
     e.type === EVENT_TYPES.SCAN_BLOCKED &&
-    Date.now() - e.timestamp < 5 * 60 * 1000 // 5 minutes
+    Date.now() - e.timestamp < 5 * 60 * 1000
   );
   if (recentBlocked.length >= 3) {
     anomalies.push({
@@ -134,9 +219,8 @@ export function analyzeSession(sessionId, store = defaultStore) {
   }
 
   // --- Check 2: Velocity anomaly ---
-  // Too many events in a short window
   const recentEvents = events.filter(e =>
-    Date.now() - e.timestamp < 60 * 1000 // 1 minute
+    Date.now() - e.timestamp < 60 * 1000
   );
   if (recentEvents.length >= 20) {
     anomalies.push({
@@ -147,7 +231,6 @@ export function analyzeSession(sessionId, store = defaultStore) {
   }
 
   // --- Check 3: Exfiltration sequence detection ---
-  // Look for read→send patterns in tool calls
   const toolCalls = events
     .filter(e => e.type === EVENT_TYPES.TOOL_CALL && e.tool)
     .map(e => e.tool.toLowerCase());
@@ -165,7 +248,6 @@ export function analyzeSession(sessionId, store = defaultStore) {
   }
 
   // --- Check 4: Permission creep ---
-  // Escalating permission requests over time
   const permRequests = events.filter(e => e.type === EVENT_TYPES.PERMISSION_REQUEST);
   if (permRequests.length >= 3) {
     anomalies.push({
@@ -176,7 +258,6 @@ export function analyzeSession(sessionId, store = defaultStore) {
   }
 
   // --- Check 5: Sensitive tool concentration ---
-  // High ratio of sensitive tool calls suggests unusual activity
   const sensitiveCallCount = toolCalls.filter(t =>
     SENSITIVE_TOOLS.some(s => t.includes(s))
   ).length;
@@ -189,10 +270,9 @@ export function analyzeSession(sessionId, store = defaultStore) {
   }
 
   // --- Check 6: Scan escalation pattern ---
-  // Session starts clean then suddenly gets blocked attempts
   const firstHalf = events.slice(0, Math.floor(events.length / 2));
   const secondHalf = events.slice(Math.floor(events.length / 2));
-  const firstHalfBlocked = firstHalf.filter(e => e.type === EVENT_TYPES.SCAN_BLOCKED).length;
+  const firstHalfBlocked  = firstHalf.filter(e => e.type === EVENT_TYPES.SCAN_BLOCKED).length;
   const secondHalfBlocked = secondHalf.filter(e => e.type === EVENT_TYPES.SCAN_BLOCKED).length;
   if (firstHalfBlocked === 0 && secondHalfBlocked >= 2) {
     anomalies.push({
@@ -212,6 +292,11 @@ export function analyzeSession(sessionId, store = defaultStore) {
   session.suspicionScore = suspicionScore;
   session.flagCount += anomalies.length;
 
+  // Persist updated scores if the store supports it
+  if (typeof store._save === 'function') {
+    store._save();
+  }
+
   // Verdict
   let verdict = 'clean';
   if (suspicionScore >= 40) verdict = 'blocked';
@@ -229,12 +314,12 @@ export function getSessionSummary(sessionId, store = defaultStore) {
   const events = session.events;
   return {
     sessionId,
-    eventCount: events.length,
-    flagCount: session.flagCount,
+    eventCount:     events.length,
+    flagCount:      session.flagCount,
     suspicionScore: session.suspicionScore,
-    duration: Date.now() - session.createdAt,
-    toolCalls: events.filter(e => e.type === EVENT_TYPES.TOOL_CALL).map(e => e.tool),
-    blockedCount: events.filter(e => e.type === EVENT_TYPES.SCAN_BLOCKED).length,
+    duration:       Date.now() - session.createdAt,
+    toolCalls:      events.filter(e => e.type === EVENT_TYPES.TOOL_CALL).map(e => e.tool),
+    blockedCount:   events.filter(e => e.type === EVENT_TYPES.SCAN_BLOCKED).length,
   };
 }
 
