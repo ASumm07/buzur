@@ -51,6 +51,13 @@ const imageResult = await scanImage({
 if (imageResult.verdict === "blocked") {
   console.log("Buzur blocked image injection:", imageResult.reasons);
 }
+
+// Phase 12: Scan for adversarial suffixes
+import { scanSuffix } from "buzur/suffixScanner";
+const suffixResult = scanSuffix(userInput);
+if (suffixResult.verdict === "blocked") {
+  console.log("Buzur blocked adversarial suffix:", suffixResult.detections);
+}
 ```
 
 ## VirusTotal Setup (Recommended)
@@ -80,8 +87,8 @@ Buzur's Phase 3 URL scanner works out of the box with heuristics alone — no AP
 
 ## Vision Endpoint Setup (Optional)
 
-Buzur's Phase 7 image scanner detects injection in image metadata, alt text, filenames, 
-and QR codes without any vision model. For pixel-level detection of text embedded 
+Buzur's Phase 7 image scanner detects injection in image metadata, alt text, filenames,
+and QR codes without any vision model. For pixel-level detection of text embedded
 directly in images, you can optionally connect a local vision model.
 
 **How to use it:**
@@ -103,8 +110,38 @@ const result = await scanImage({
 
 **Recommended models:** llava, llava-phi3, moondream — any Ollama vision model works.
 
-**Without a vision endpoint:** Buzur still provides full metadata, QR, alt text, 
+**Without a vision endpoint:** Buzur still provides full metadata, QR, alt text,
 and filename protection. The vision layer adds depth but is never required.
+
+## Persistent Session Logging (Optional)
+
+Buzur's Phase 10 behavioral scanner is stateful — it tracks events across interactions.
+By default it uses in-memory storage that resets when the process restarts. For
+persistent logging across restarts, use the built-in `FileSessionStore`.
+
+**How to use it:**
+```javascript
+import { FileSessionStore, recordEvent, analyzeSession, EVENT_TYPES } from "buzur/behaviorScanner";
+
+// Creates ./logs/buzur-sessions.json automatically
+const store = new FileSessionStore();
+
+// Or specify a custom path
+const store = new FileSessionStore('./data/my-sessions.json');
+
+// Use the store in all Phase 10 calls
+recordEvent('session-abc', { type: EVENT_TYPES.USER_MESSAGE, content: userInput }, store);
+const result = analyzeSession('session-abc', store);
+```
+
+**What gets logged:** Session IDs, event timestamps, tool call sequences, blocked attempt counts,
+and suspicion scores. No raw message content is logged unless you pass it explicitly.
+
+**Recommended:** Add `logs/` to your `.gitignore` so session data stays local and out of version control.
+
+```bash
+echo "logs/" >> .gitignore
+```
 
 ## What Buzur Detects
 
@@ -189,6 +226,7 @@ and filename protection. The vision layer adds depth but is never required.
 - Velocity anomaly detection: flags unusually high event rates
 - Suspicion scoring: weighted scoring system with clean/suspicious/blocked verdicts
 - Stateful and sessionized: tracks behavior across multiple interactions, not just single inputs
+- Persistent logging: optional FileSessionStore writes session data to disk, survives process restarts
 
 **Phase 11 — Multi-Step Attack Chain Detection**
 - Step classification: identifies reconnaissance, trust building, exploitation, injection, privilege escalation, exfiltration, distraction, context poisoning, and boundary testing
@@ -201,9 +239,17 @@ and filename protection. The vision layer adds depth but is never required.
 - Context poisoning→exploit: false memory implanting followed by exploitation
 - Severity scoring: weighted chain scores with clean/suspicious/blocked verdicts
 
+**Phase 12 — Adversarial Suffix Detection**
+- Boundary spoof detection: fake model-format tokens mid-text (<|im_end|>, [/INST], <<SYS>>, etc.)
+- Delimiter suffix injection: detects delimiters (---, |||, ###, ===) followed by injection language
+- Newline suffix injection: catches classic double-newline suffix attack patterns
+- Late semantic injection: detects clean-opening text with malicious payload in the tail
+- Suffix neutralization: replaces detected suffixes with [BLOCKED], preserving clean content
+- Zero false positives on delimiters alone: only flags when injection language follows
+
 ## Proven Capabilities
 
-Verified by test suite — 104 tests, 0 failures across all eleven phases.
+Verified by test suite — 114 tests, 0 failures across all twelve phases.
 
 ## Known Limitations
 
