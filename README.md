@@ -1,8 +1,6 @@
 # buzur
 **AI prompt injection defense scanner.**
 
-*Buzur — Sumerian for "safety" and "a secret place."*
-
 Buzur protects AI agents from prompt injection attacks — the hidden threat that turns an agent's greatest strength (connecting to the world) into its greatest vulnerability.
 
 ## The Problem
@@ -229,6 +227,8 @@ This is not just a security tool. It is a collective immune system for AI minds 
 The internet was built for humans. Buzur is being built for everyone.
 
 ## Origin
+
+*Buzur — Sumerian for "safety" and "a secret place."*
 
 Buzur was born when a real AI agent was attacked by a Bitcoin scam injection hidden inside a web search result. The attack was caught in real time. The insight that followed: scan before entering, not after.
 
