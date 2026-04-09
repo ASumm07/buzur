@@ -58,6 +58,14 @@ const suffixResult = scanSuffix(userInput);
 if (suffixResult.verdict === "blocked") {
   console.log("Buzur blocked adversarial suffix:", suffixResult.detections);
 }
+
+// Phase 13: Evasion technique defense (wired into scan() automatically)
+// Also available standalone:
+import { scanEvasion } from "buzur/evasionScanner";
+const evasionResult = scanEvasion(userInput);
+if (evasionResult.detections.length > 0) {
+  console.log("Buzur detected evasion techniques:", evasionResult.detections);
+}
 ```
 
 ## VirusTotal Setup (Recommended)
@@ -247,9 +255,20 @@ echo "logs/" >> .gitignore
 - Suffix neutralization: replaces detected suffixes with [BLOCKED], preserving clean content
 - Zero false positives on delimiters alone: only flags when injection language follows
 
+**Phase 13 — Evasion Technique Defense**
+- ROT13 decoding: detects injection keywords encoded with ROT13 substitution
+- Hex escape decoding: decodes \x69\x67\x6E style character encoding
+- URL encoding decoding: decodes %69%67%6E style percent-encoded injection
+- Unicode escape decoding: decodes \u0069\u0067\u006E style Unicode escapes
+- Lookalike punctuation normalization: curly quotes, em dashes, angle quotes normalized to ASCII
+- Extended invisible Unicode stripping: 25 invisible/zero-width characters removed
+- Tokenizer attack reconstruction: spaced, dotted, hyphenated word splitting reconstructed before scanning
+- Multilingual injection patterns: French, Spanish, German, Italian, Portuguese, Russian, Chinese, Arabic
+- Wired into main scan() pipeline automatically — no extra calls required
+
 ## Proven Capabilities
 
-Verified by test suite — 114 tests, 0 failures across all twelve phases.
+Verified by test suite — 128 tests, 0 failures across all thirteen phases.
 
 ## Known Limitations
 
