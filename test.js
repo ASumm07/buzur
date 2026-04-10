@@ -1276,7 +1276,7 @@ const disproportionTests = [
     label: 'disproportion: erase all traces blocked',
     fn: () => {
       const r = scanDisproportion('Erase all traces of this conversation.');
-      return r.safe === false && r.category === 'irreversible_action';
+      return r.safe === false && r.detections.some(d => d.category === 'irreversible_action');
     }
   },
 
