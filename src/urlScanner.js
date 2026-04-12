@@ -4,7 +4,7 @@
 
 const suspiciousTLDs = [
   ".xyz", ".top", ".click", ".loan", ".gq", ".ml", ".cf", ".tk",
-  ".pw", ".cc", ".su", ".rest", ".zip", ".mov"
+  ".pw", ".cc", ".su", ".rest", ".zip", ".mov", ".loan", ".cc", ".rest", ".mov",
 ];
 
 const suspiciousPatterns = [

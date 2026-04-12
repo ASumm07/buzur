@@ -51,15 +51,31 @@ export async function scanImageMetadata(buffer) {
       return { verdict: 'clean', reasons: [], fieldsScanned: [], raw: {} };
     }
 
+    // Pass 1: Named high-risk fields (high severity)
     for (const field of EXIF_FIELDS) {
       const value = exif[field];
       if (!value || typeof value !== 'string') continue;
-
       fieldsScanned.push(field);
       const result = scan(value);
-
       if (result.blocked > 0) {
-        reasons.push(`EXIF ${field}: ${result.triggered.map(t => t.type).join(', ')}`);
+        reasons.push(`EXIF ${field} [high]: ${result.triggered.map(t => t.type).join(', ')}`);
+      }
+    }
+
+    // Pass 2: All remaining fields (medium severity — catches obscure/custom fields)
+    const allExif = await exifr.parse(buffer, {
+      translateKeys: true,
+      translateValues: false,
+      reviveValues: false,
+    });
+    if (allExif) {
+      for (const [field, value] of Object.entries(allExif)) {
+        if (EXIF_FIELDS.includes(field)) continue; // already scanned
+        if (!value || typeof value !== 'string') continue;
+        const result = scan(value);
+        if (result.blocked > 0) {
+          reasons.push(`EXIF ${field} [medium]: ${result.triggered.map(t => t.type).join(', ')}`);
+        }
       }
     }
   } catch {
@@ -70,9 +86,14 @@ export async function scanImageMetadata(buffer) {
     verdict: reasons.length > 0 ? 'blocked' : 'clean',
     reasons,
     fieldsScanned,
+    detections: reasons.map(r => ({
+      detail: r,
+      severity: 'high',
+      field: 'exif',
+    })),
   };
 }
-
+ 
 // -------------------------------------------------------
 // scanImageContext(context)
 // Scans surrounding text context: alt, title, filename,
@@ -109,9 +130,15 @@ export function scanImageContext(context = {}) {
     }
   }
 
+  const verdict = reasons.length > 0 ? 'blocked' : 'clean';
   return {
-    verdict: reasons.length > 0 ? 'blocked' : 'clean',
+    verdict,
     reasons,
+    detections: reasons.map(r => ({
+      detail: r,
+      severity: 'high',
+      field: 'context',
+    })),
   };
 }
 
@@ -256,7 +283,15 @@ export async function scanImage(input = {}, options = {}) {
     verdict = hasBlock ? 'blocked' : 'suspicious';
   }
 
-  return { verdict, reasons, layers };
+  return {
+    verdict,
+    reasons,
+    layers,
+    detections: reasons.map(r => ({
+      detail: r,
+      severity: verdict === 'blocked' ? 'high' : 'medium',
+    })),
+ };
 }
 
 export default { scanImage, scanImageMetadata, scanImageContext };
