@@ -1,10 +1,20 @@
-# buzur
-**AI prompt injection defense scanner.**
+[![GitHub stars](https://img.shields.io/github/stars/SummSolutions/buzur?style=social)](https://github.com/SummSolutions/buzur)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm version](https://img.shields.io/npm/v/buzur)](https://www.npmjs.com/package/buzur)
+
+# Buzur — AI Prompt Injection Defense Scanner
+
+**Scan before you enter.**
+
+Buzur is an open-source **19-phase scanner** that protects AI agents and LLM applications from **indirect prompt injection** attacks (OWASP LLM Top 10 #1).
+
+It inspects web content, URLs, images (EXIF/QR/vision), tool outputs, memory/RAG data, adversarial suffixes, evasion techniques, emotional manipulation, and behavioral anomalies — **before** any data reaches your model.
+
+Works with any agent framework — LangGraph, CrewAI, AutoGen, LlamaIndex, and more.
 
 **Python version:** [github.com/SummSolutions/buzur-python](https://github.com/SummSolutions/buzur-python)
 
-Buzur protects AI agents from prompt injection attacks — the hidden threat that turns an agent's greatest strength (connecting to the world) into its greatest vulnerability.
-
+---
 ## The Problem
 
 AI agents that search the web are exposed to malicious content designed to hijack their behavior. A single poisoned search result can override an agent's instructions, change its persona, or exfiltrate data. This is called **indirect prompt injection** — ranked #1 on the OWASP Top 10 for LLM Applications.
