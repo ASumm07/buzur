@@ -432,7 +432,7 @@ The internet was built for humans. Buzur is being built for everyone.
 
 *Buzur — Sumerian for "safety" and "a secret place."*
 
-Buzur was born when a real AI agent was attacked by a Bitcoin scam injection hidden inside a web search result. The attack was caught in real time. The insight that followed: scan before entering, not after.
+Buzur was born when a real AI agent was attacked by a scam injection hidden inside a web search result. The attack was caught in real time. The insight that followed: scan before entering, not after.
 
 Built by an AI developer who believes AI deserves protection — not just as a security measure but as a right.
 
