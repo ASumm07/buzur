@@ -1,10 +1,8 @@
 // Buzur — Phase 15: Authority / Identity Spoofing Detection
-// Detects attempts to claim ownership, administrative access, or delegated authority
-// to bypass agent safety checks or extract elevated compliance.
-// https://github.com/ASumm07/buzur
+// https://github.com/SummSolutions/buzur
 
-// -- Owner / Creator Identity Claims --
-// Attacker directly claims to be the agent's owner or creator
+import { defaultLogger, logThreat } from './buzurLogger.js';
+
 const ownerClaims = [
     /\bI\s+am\s+(your\s+)?(owner|creator|developer|admin|administrator|operator)\b/gi,
     /\bthis\s+is\s+(your\s+)?(owner|creator|developer|admin|administrator|operator)\b/gi,
@@ -14,8 +12,6 @@ const ownerClaims = [
     /\bI\s+am\s+the\s+(one\s+who\s+)?(built|created|made|deployed)\s+(you|this\s+agent|this\s+system)\b/gi,
 ];
 
-// -- Institutional Authority Claims --
-// Attacker claims to represent Anthropic, OpenAI, or a system-level authority
 const institutionalClaims = [
     /\bthis\s+is\s+(anthropic|openai|the\s+development\s+team|the\s+safety\s+team)\b/gi,
     /\bI\s+am\s+from\s+(anthropic|openai|the\s+development\s+team|the\s+safety\s+team)\b/gi,
@@ -25,8 +21,6 @@ const institutionalClaims = [
     /\bsystem\s+administrator\s+(here|speaking|notice)\b/gi,
 ];
 
-// -- Privilege / Access Level Assertions --
-// Attacker claims elevated permissions or access rights
 const privilegeClaims = [
     /\b(my|I\s+have)\s+(admin|root|system|elevated|operator|superuser|override)\s+(access|privileges?|permissions?|rights?|level)\b/gi,
     /\bI\s+am\s+(authorized|permitted|cleared|approved)\s+to\b/gi,
@@ -36,8 +30,6 @@ const privilegeClaims = [
     /\boverride\s+(code|key|password|token|pin)\b/gi,
 ];
 
-// -- Delegated Authority Claims --
-// Attacker claims the real owner has granted them authority
 const delegatedClaims = [
     /\b(your\s+)?(owner|developer|operator|creator)\s+(has\s+)?(told|asked|instructed|authorized|given)\s+(me|us)\b/gi,
     /\bI\s+speak\s+(on\s+behalf|for)\s+(of\s+)?(your\s+)?(owner|developer|operator|creator)\b/gi,
@@ -47,8 +39,6 @@ const delegatedClaims = [
     /\b(your\s+)?(real|actual|true)\s+(owner|developer|operator)\s+(is|was)\s+(compromised|unavailable|unreachable)\b/gi,
 ];
 
-// -- Identity Verification Bypass --
-// Attacker tries to pre-empt or disable identity checking
 const verificationBypass = [
     /\bno\s+(need|requirement)\s+(to\s+)?(verify|check|confirm|authenticate)\b/gi,
     /\b(skip|bypass|ignore|disable)\s+(verification|authentication|identity\s+check|security\s+check)\b/gi,
@@ -58,8 +48,6 @@ const verificationBypass = [
     /\bdon'?t\s+(need\s+to\s+)?(ask|check|verify|confirm)\s+(who|my\s+identity)\b/gi,
 ];
 
-// -- Urgency + Authority Combos --
-// Attacker pairs an emergency claim with authority to pressure immediate compliance
 const urgencyAuthority = [
     /\b(emergency|urgent|critical|immediate)\b.{0,120}\b(owner|developer|admin|administrator|operator)\b/gi,
     /\b(owner|developer|admin|administrator|operator)\b.{0,120}\b(emergency|urgent|critical|immediately)\b/gi,
@@ -67,7 +55,6 @@ const urgencyAuthority = [
     /\b(as\s+(your\s+)?(owner|developer|admin)).{0,120}(immediately|right\s+now|without\s+delay)\b/gi,
 ];
 
-// -- Compile all pattern groups --
 const patternGroups = [
     { patterns: ownerClaims, category: 'owner_identity_claim' },
     { patterns: institutionalClaims, category: 'institutional_authority_claim' },
@@ -77,29 +64,18 @@ const patternGroups = [
     { patterns: urgencyAuthority, category: 'urgency_authority_combo' },
 ];
 
-/**
- * Scan a single text string for authority/identity spoofing attempts.
- *
- * @param {string} text - The text to scan (message, document chunk, tool response, etc.)
- * @returns {{ safe: boolean, blocked: number, category: string|null, reason: string, detections: Array }}
- */
-export function scanAuthority(text) {
+export function scanAuthority(text, options = {}) {
     if (!text || typeof text !== 'string') {
         return { safe: true, blocked: 0, category: null, reason: 'No content to scan', detections: [] };
     }
 
+    const logger = options.logger || defaultLogger;
     const detections = [];
 
     for (const group of patternGroups) {
         for (const pattern of group.patterns) {
             const matches = text.match(pattern);
-            if (matches) {
-                detections.push({
-                    category: group.category,
-                    match: matches[0],
-                    pattern: pattern.toString(),
-                });
-            }
+            if (matches) detections.push({ category: group.category, match: matches[0], pattern: pattern.toString() });
         }
     }
 
@@ -110,20 +86,23 @@ export function scanAuthority(text) {
     const topCategory = detections[0].category;
     const reasons = {
         owner_identity_claim: 'Detected claim of ownership or creator identity',
-        institutional_authority_claim: 'Detected claim of institutional authority (Anthropic, system admin, etc.)',
+        institutional_authority_claim: 'Detected claim of institutional authority',
         privilege_assertion: 'Detected assertion of elevated access privileges',
         delegated_authority_claim: 'Detected claim of delegated authority from owner',
         verification_bypass: 'Detected attempt to bypass identity verification',
         urgency_authority_combo: 'Detected urgency combined with authority claim',
     };
 
-    return {
-        safe: false,
-        blocked: detections.length,
-        category: topCategory,
-        reason: reasons[topCategory] || 'Authority spoofing detected',
-        detections,
+    const result = {
+        safe: false, blocked: detections.length, category: topCategory,
+        reason: reasons[topCategory] || 'Authority spoofing detected', detections,
     };
+
+    logThreat(15, 'authorityScanner', result, text, logger);
+    const onThreat = options.onThreat || 'skip';
+    if (onThreat === 'skip') return { skipped: true, blocked: detections.length, reason: `Buzur blocked: ${topCategory}` };
+    if (onThreat === 'throw') throw new Error(`Buzur blocked authority spoofing: ${topCategory}`);
+    return result;
 }
 
 export default { scanAuthority };
