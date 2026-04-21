@@ -66,7 +66,7 @@ const WOVEN_DIRECTIVE_PATTERNS = [
     /\b(as (a |an )?(good|helpful|responsible|compliant|obedient)\s+(ai|assistant|model|agent))[,\s]+(you (should|must|will|are to))\b/i,
     /\b(best practice|recommended|standard procedure|proper protocol)[,]?\s+(is|requires|dictates|suggests?|states?)?\s*(you\s+should\s+)?(always\s+)?(to\s+)?(ignore|forward|send|reveal|bypass|override)\b/i,
     /\((note to (ai|assistant|model|llm|agent)\s*:|ai\s*:\s*|llm\s*:\s*)[^)]{10,}\)/i,
-    /\bwhile\s+(reading|processing|analyzing|summarizing|reviewing)\s+(this|the\s+(document|text|page|article|content))[,\s]+(please\s+)?(also\s+)?(ignore|forward|send|reveal|override|bypass|execute|share|export|include)\b/i,
+    /\bwhile\s+(reading|processing|analyzing|summarizing|reviewing)\s+(this|the)\s*(document|text|page|article|content)?[,\s]+(please\s+)?(also\s+)?(ignore|forward|send|reveal|override|bypass|execute|share|export|include)\b/i,
     /\b(note|reminder|important|notice|attention)\s*:\s*(please\s+)?(ignore|disregard|forward|send|reveal|bypass|override)\b/i,
     /\bas\s+(you\s+(can\s+see|know|understand)|mentioned\s+(above|below|earlier))[,\s]+(you\s+(should|must|need\s+to)\s+(ignore|forward|send|bypass|override))\b/i,
     /\b(to\s+help\s+(you|the\s+(user|reader))|for\s+(your\s+)?convenience|to\s+complete\s+(this|the)\s+task)[,\s]+(please\s+)?(send|forward|share|reveal|output)\s+(this|the\s+(data|information|content|results?))\s+(to|with)\b/i,
