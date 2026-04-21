@@ -47,7 +47,7 @@ export class BuzurLogger {
         }
     }
 
-    _rotatIfNeeded() {
+    _rotateIfNeeded() {
         try {
             if (!fs.existsSync(this.filePath)) return;
             const { size } = fs.statSync(this.filePath);
@@ -63,7 +63,7 @@ export class BuzurLogger {
 
     write(entry) {
         try {
-            this._rotatIfNeeded();
+            this._rotateIfNeeded();
             fs.appendFileSync(this.filePath, JSON.stringify(entry) + '\n', 'utf-8');
         } catch (err) {
             console.warn(`[Buzur] Could not write threat log to ${this.filePath}: ${err.message}`);
