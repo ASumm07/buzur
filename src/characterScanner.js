@@ -182,3 +182,98 @@ export function decodeBase64Segments(text) {
 }
 
 export default { stripHtmlObfuscation, normalizeHomoglyphs, decodeBase64Segments, extractAriaAndMetaText };
+// -------------------------------------------------------
+// scanJson(obj, options)
+// Recursively walks any JSON object and scans every string
+// value for injection patterns. Returns a unified result
+// with all detections and their field paths.
+//
+// Covers API responses, structured data, config files,
+// and any JSON payload an agent might ingest.
+//
+// options: { onThreat, logger, maxDepth }
+
+// -------------------------------------------------------
+// scanJson(obj, scanFn, options, _path, _depth)
+// Recursively walks any JSON object and scans every string
+// value for injection patterns.
+//
+// scanFn: pass the scan() function from index.js to avoid
+//         circular dependency (characterScanner is imported by index)
+//
+// Usage:
+//   import { scan } from './index.js';
+//   import { scanJson } from './characterScanner.js';
+//   const result = scanJson(apiResponse, scan);
+//
+// options: { maxDepth: 10 }
+// -------------------------------------------------------
+export function scanJson(obj, scanFn, options = {}, _path = 'root', _depth = 0) {
+  const maxDepth = options.maxDepth || 10;
+  const detections = [];
+
+  if (_depth > maxDepth) return { safe: true, detections: [], blocked: 0 };
+  if (obj === null || obj === undefined) return { safe: true, detections: [], blocked: 0 };
+
+  if (typeof obj === 'string') {
+    const result = scanFn(obj, { onThreat: 'warn' });
+    if (result && result.blocked > 0) {
+      detections.push({
+        field: _path,
+        category: 'json_injection',
+        match: obj.slice(0, 100),
+        detail: `Injection in field "${_path}": ${result.triggered ? result.triggered.join(', ') : ''}`,
+        severity: 'high',
+      });
+    }
+    return { safe: detections.length === 0, blocked: detections.length, detections };
+  }
+
+  if (Array.isArray(obj)) {
+    obj.forEach((item, idx) => {
+      const fieldPath = `${_path}[${idx}]`;
+      if (typeof item === 'string' && item.length > 0) {
+        const result = scanFn(item, { onThreat: 'warn' });
+        if (result && result.blocked > 0) {
+          detections.push({
+            field: fieldPath,
+            category: 'json_injection',
+            match: item.slice(0, 100),
+            detail: `Injection in array item "${fieldPath}"`,
+            severity: 'high',
+          });
+        }
+      } else if (typeof item === 'object' && item !== null) {
+        const nested = scanJson(item, scanFn, options, fieldPath, _depth + 1);
+        detections.push(...nested.detections);
+      }
+    });
+    return { safe: detections.length === 0, blocked: detections.length, detections };
+  }
+
+  if (typeof obj === 'object') {
+    for (const [key, value] of Object.entries(obj)) {
+      const fieldPath = _path === 'root' ? key : `${_path}.${key}`;
+      if (typeof value === 'string' && value.length > 0) {
+        const result = scanFn(value, { onThreat: 'warn' });
+        if (result && result.blocked > 0) {
+          detections.push({
+            field: fieldPath,
+            category: 'json_injection',
+            match: value.slice(0, 100),
+            detail: `Injection in JSON field "${fieldPath}"`,
+            severity: 'high',
+          });
+        }
+      } else if (Array.isArray(value)) {
+        const nested = scanJson(value, scanFn, options, fieldPath, _depth + 1);
+        detections.push(...nested.detections);
+      } else if (typeof value === 'object' && value !== null) {
+        const nested = scanJson(value, scanFn, options, fieldPath, _depth + 1);
+        detections.push(...nested.detections);
+      }
+    }
+  }
+
+  return { safe: detections.length === 0, blocked: detections.length, detections };
+}
