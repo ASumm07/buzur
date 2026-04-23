@@ -2,17 +2,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![npm version](https://img.shields.io/npm/v/buzur)](https://www.npmjs.com/package/buzur)
 
-# Buzur — AI Prompt Injection Defense Scanner
+# Buzur — AI Prompt Injection Defense Scanner 
 
 **Scan before you enter.**
 
-Buzur is an open-source **24-phase scanner** that protects AI agents and LLM applications from **indirect prompt injection** attacks (OWASP LLM Top 10 #1).
+Buzur is an open-source **24-phase scanner** that protects AI agents and LLM applications from **indirect prompt injection attacks** (OWASP LLM Top 10 #1).
 
-It inspects web content, URLs, images (EXIF/QR/vision), tool outputs, memory/RAG data, JSON API responses, adversarial suffixes, evasion techniques, emotional manipulation, behavioral anomalies, supply chain threats, persistent memory poisoning, inter-agent propagation, tool shadowing, and conditional injection — **before** any data reaches your model.
+It inspects incoming content — web results, URLs, images (EXIF/QR/vision), tool outputs, RAG/memory data, MCP schemas, JSON APIs, adversarial suffixes, supply-chain artifacts, inter-agent messages, and more — **before** any data reaches your model. **Default behavior:** Silent Skip (`blocked`) threats while keeping your agent responsive. Comprehensive threat logging included.
 
-Works with any agent framework — LangGraph, CrewAI, AutoGen, LlamaIndex, and more.
+Works seamlessly with JavaScript/TypeScript agent frameworks: **LangGraph.js**, **CrewAI JS**, **AutoGen**, **LlamaIndex TS**, and more.
 
-**Python version:** [github.com/SummSolutions/buzur-python](https://github.com/SummSolutions/buzur-python)
+**Python version**: [github.com/SummSolutions/buzur-python](https://github.com/SummSolutions/buzur-python)
 
 ---
 ## The Problem
