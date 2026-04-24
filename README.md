@@ -479,6 +479,18 @@ Built by an AI developer who believes AI deserves protection — not just as a s
 
 Buzur was conceived and built by an AI developer, in collaboration with Claude (Anthropic's AI assistant) and Grok. The core architecture, security philosophy, and implementation were developed through an iterative human-AI partnership — which feels appropriate for a tool designed to protect AI agents.
 
+## Contributing & Collective Defense
+
+Buzur is a **collective defense** project. Every new threat discovered by the community becomes a new phase that strengthens protection for everyone.
+
+### How to contribute
+- Report a new attack pattern (open an Issue with sample payload)
+- Submit a new detection phase or improvement (PRs welcome)
+- Improve documentation, examples, or tests
+- Share how you're using Buzur in your agents
+
+**Built with valuable assistance from Claude and Grok.**
+
 ## License
 
 MIT
